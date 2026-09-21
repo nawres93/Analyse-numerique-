@@ -10,6 +10,7 @@ des fonctions comme `find_by_email(...)`.
 """
 
 from datetime import datetime, timezone
+from typing import Optional
 
 from bson import ObjectId
 
@@ -90,3 +91,123 @@ async def has_refresh_token(user_id: str, refresh_token: str) -> bool:
     if not user:
         return False
     return refresh_token in user.get("refresh_tokens", [])
+
+# =====================================================
+# ADMIN - GESTION DES ETUDIANTS
+# =====================================================
+
+
+async def find_students(
+    search: Optional[str] = None
+) -> list[dict]:
+
+    query = {
+        "role": "student"
+    }
+
+
+    if search:
+
+        query["$or"] = [
+            {
+                "full_name": {
+                    "$regex": search,
+                    "$options": "i"
+                }
+            },
+            {
+                "email": {
+                    "$regex": search,
+                    "$options": "i"
+                }
+            }
+        ]
+
+
+    cursor = _users_collection().find(query)
+
+
+    students = []
+
+
+    async for student in cursor:
+
+        student["id"] = str(student["_id"])
+
+        del student["_id"]
+
+        students.append(student)
+
+
+    return students
+
+
+
+async def count_students() -> int:
+
+    return await _users_collection().count_documents(
+        {
+            "role": "student"
+        }
+    )
+
+
+
+async def create_student(
+    student_document: dict
+) -> str:
+
+    result = await _users_collection().insert_one(
+        student_document
+    )
+
+    return str(result.inserted_id)
+
+
+
+async def update_student(
+    student_id: str,
+    data: dict
+) -> bool:
+
+
+    if not ObjectId.is_valid(student_id):
+        return False
+
+
+    result = await _users_collection().update_one(
+        {
+            "_id": ObjectId(student_id),
+            "role": "student"
+        },
+        {
+            "$set": {
+                **data,
+                "updated_at": datetime.now(timezone.utc)
+            }
+        }
+    )
+
+
+    return result.modified_count > 0
+
+
+
+async def delete_student(
+    student_id: str
+) -> bool:
+
+
+    if not ObjectId.is_valid(student_id):
+        return False
+
+
+    result = await _users_collection().delete_one(
+        {
+            "_id": ObjectId(student_id),
+            "role": "student"
+        }
+    )
+
+
+    return result.deleted_count > 0

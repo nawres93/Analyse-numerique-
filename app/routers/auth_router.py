@@ -6,6 +6,12 @@ renvoyer la réponse. Pas de logique métier ici.
 """
 
 from fastapi import APIRouter, Depends, status
+from fastapi import Request
+from fastapi.responses import RedirectResponse
+
+from app.core.config import settings
+from app.utils.google_oauth import build_google_auth_url
+
 
 from app.dependencies.auth import get_current_user
 from app.schemas.auth_schema import (
@@ -73,3 +79,19 @@ async def reset_password(data: ResetPasswordRequest):
 @router.get("/me", response_model=UserOut)
 async def get_me(current_user: dict = Depends(get_current_user)):
     return UserOut.from_mongo(current_user)
+
+
+@router.get("/google")
+async def google_login():
+    return RedirectResponse(build_google_auth_url())
+
+
+@router.get("/google/callback")
+async def google_callback(code: str):
+    tokens = await auth_service.authenticate_google_user(code)
+    redirect_url = (
+        f"{settings.FRONTEND_URL}/auth/google/success"
+        f"?access_token={tokens['access_token']}"
+        f"&refresh_token={tokens['refresh_token']}"
+    )
+    return RedirectResponse(redirect_url)

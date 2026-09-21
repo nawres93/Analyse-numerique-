@@ -8,7 +8,7 @@ renvoyer la réponse HTTP. Toute la vraie logique (règles métier, appels
 successifs à plusieurs repositories/utils) est ici. Ça permet par exemple
 de tester cette logique sans avoir besoin de lancer un serveur HTTP.
 """
-
+from app.utils.google_oauth import exchange_code_for_userinfo
 from datetime import datetime, timedelta, timezone
 
 from fastapi import HTTPException, status
@@ -173,3 +173,32 @@ async def reset_password(token: str, new_password: str) -> None:
 
     hashed = hash_password(new_password)
     await repo.update_password(str(user["_id"]), hashed)
+
+
+
+
+
+async def authenticate_google_user(code: str) -> dict:
+    google_user = await exchange_code_for_userinfo(code)
+    email = google_user["email"]
+
+    user = await repo.find_by_email(email)
+
+    if not user:
+        user_doc = UserModel.new_user_document(
+            full_name=google_user.get("name", email),
+            email=email,
+            hashed_password=hash_password(generate_random_token()),
+            role=UserRole.STUDENT,
+            verification_token="",
+        )
+        user_id = await repo.insert_user(user_doc)
+        await repo.mark_email_verified(user_id)
+        user = await repo.find_by_id(user_id)
+
+    user_id = str(user["_id"])
+    access_token = create_access_token(user_id, user["role"])
+    refresh_token = create_refresh_token(user_id, user["role"])
+    await repo.add_refresh_token(user_id, refresh_token)
+
+    return {"access_token": access_token, "refresh_token": refresh_token}

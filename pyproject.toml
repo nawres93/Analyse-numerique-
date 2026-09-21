@@ -1,0 +1,26 @@
+[project]
+name = "backend"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "Nawres Bejaoui", email = "nawres93@gmail.com" }
+]
+requires-python = ">=3.14"
+dependencies = [
+    "authlib>=1.7.2",
+    "fastapi[all]>=0.140.13",
+    "langchain>=1.3.14",
+    "langchain-openai>=1.4.1",
+    "psycopg2-binary>=2.9.12",
+    "python-dotenv>=1.2.2",
+    "sqlalchemy>=2.0.51",
+    "uvicorn>=0.51.0",
+]
+
+[project.scripts]
+backend = "backend:main"
+
+[build-system]
+requires = ["uv_build>=0.12.0,<0.13.0"]
+build-backend = "uv_build"
